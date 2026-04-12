@@ -37,7 +37,7 @@ export class UserController {
   @ApiOkResponse({ description: 'Users returned.' })
   findAll(
     @Query() query: ListQueryDto,
-  ): PublicUser[] | PaginatedResponse<PublicUser> {
+  ): Promise<PublicUser[] | PaginatedResponse<PublicUser>> {
     return this.userService.findAllPublic(query);
   }
 
@@ -48,7 +48,7 @@ export class UserController {
   @ApiNotFoundResponse({ description: 'User not found.' })
   findOne(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ): PublicUser {
+  ): Promise<PublicUser> {
     return this.userService.findOnePublic(id);
   }
 
@@ -56,7 +56,7 @@ export class UserController {
   @ApiOperation({ summary: 'Create user.' })
   @ApiCreatedResponse({ description: 'User created.' })
   @ApiBadRequestResponse({ description: 'Invalid body.' })
-  create(@Body() body: CreateUserDto): PublicUser {
+  create(@Body() body: CreateUserDto): Promise<PublicUser> {
     return this.userService.create(body);
   }
 
@@ -69,7 +69,7 @@ export class UserController {
   updatePassword(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: UpdatePasswordDto,
-  ): PublicUser {
+  ): Promise<PublicUser> {
     return this.userService.updatePassword(id, body);
   }
 
@@ -79,7 +79,9 @@ export class UserController {
   @ApiNoContentResponse({ description: 'User deleted.' })
   @ApiBadRequestResponse({ description: 'Invalid UUID.' })
   @ApiNotFoundResponse({ description: 'User not found.' })
-  remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): void {
-    this.userService.remove(id);
+  async remove(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<void> {
+    await this.userService.remove(id);
   }
 }

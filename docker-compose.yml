@@ -28,6 +28,9 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    environment:
+      POSTGRES_HOST: db
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public&connection_limit=10&pool_timeout=20"
     ports:
       - "4000:4000"
     healthcheck:

@@ -3,7 +3,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { Comment } from '../common/models/comment.model';
 import { PaginatedResponse } from '../common/models/paginated-response.model';
 import {
@@ -11,24 +11,30 @@ import {
   shouldPaginate,
   sortItems,
 } from '../common/utils/list-query.util';
-import { InMemoryDbService } from '../storage/in-memory-db.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CommentListQueryDto } from './dto/comment-list-query.dto';
 
 @Injectable()
 export class CommentService {
-  constructor(private readonly db: InMemoryDbService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAll(): Comment[] {
-    return this.db.comments;
+  async findAll(): Promise<Comment[]> {
+    const comments = await this.prisma.comment.findMany();
+    return comments.map((comment) => this.mapPrismaComment(comment));
   }
 
-  findByArticleId(
+  async findByArticleId(
     query: CommentListQueryDto,
-  ): Comment[] | PaginatedResponse<Comment> {
-    const filtered = this.db.comments.filter(
-      (comment) => comment.articleId === query.articleId,
-    );
+  ): Promise<Comment[] | PaginatedResponse<Comment>> {
+    const filtered = (
+      await this.prisma.comment.findMany({
+        where: {
+          articleId: query.articleId,
+        },
+      })
+    ).map((comment) => this.mapPrismaComment(comment));
+
     const sorted = sortItems(filtered, query.sortBy, query.order ?? 'asc', [
       'id',
       'content',
@@ -44,41 +50,64 @@ export class CommentService {
     return sorted;
   }
 
-  findOne(id: string): Comment {
-    const comment = this.db.comments.find((item) => item.id === id);
+  async findOne(id: string): Promise<Comment> {
+    const comment = await this.prisma.comment.findUnique({ where: { id } });
+
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }
-    return comment;
+
+    return this.mapPrismaComment(comment);
   }
 
-  create(payload: CreateCommentDto): Comment {
-    const articleExists = this.db.articles.some(
-      (article) => article.id === payload.articleId,
-    );
-    if (!articleExists) {
+  async create(payload: CreateCommentDto): Promise<Comment> {
+    const article = await this.prisma.article.findUnique({
+      where: { id: payload.articleId },
+    });
+
+    if (!article) {
       throw new UnprocessableEntityException('articleId does not exist');
     }
 
-    const comment: Comment = {
-      id: randomUUID(),
-      content: payload.content,
-      articleId: payload.articleId,
-      authorId: payload.authorId ?? null,
-      createdAt: Date.now(),
-    };
+    if (payload.authorId !== undefined && payload.authorId !== null) {
+      const author = await this.prisma.user.findUnique({
+        where: { id: payload.authorId },
+      });
+      if (!author) {
+        throw new UnprocessableEntityException('authorId does not exist');
+      }
+    }
 
-    this.db.comments.push(comment);
-    return comment;
+    const comment = await this.prisma.comment.create({
+      data: {
+        content: payload.content,
+        articleId: payload.articleId,
+        authorId: payload.authorId ?? null,
+      },
+    });
+
+    return this.mapPrismaComment(comment);
   }
 
-  remove(id: string): void {
-    const index = this.db.comments.findIndex((item) => item.id === id);
+  async remove(id: string): Promise<void> {
+    const comment = await this.prisma.comment.findUnique({ where: { id } });
 
-    if (index === -1) {
+    if (!comment) {
       throw new NotFoundException('Comment not found');
     }
 
-    this.db.comments.splice(index, 1);
+    await this.prisma.comment.delete({ where: { id } });
+  }
+
+  private mapPrismaComment(
+    comment: Prisma.CommentGetPayload<Record<string, never>>,
+  ): Comment {
+    return {
+      id: comment.id,
+      content: comment.content,
+      articleId: comment.articleId,
+      authorId: comment.authorId,
+      createdAt: comment.createdAt.getTime(),
+    };
   }
 }

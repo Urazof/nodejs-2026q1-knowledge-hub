@@ -37,7 +37,7 @@ export class ArticleController {
   @ApiBadRequestResponse({ description: 'Invalid query filter values.' })
   findAll(
     @Query() query: ArticleFilterQueryDto,
-  ): Article[] | PaginatedResponse<Article> {
+  ): Promise<Article[] | PaginatedResponse<Article>> {
     return this.articleService.findAll(query);
   }
 
@@ -48,7 +48,7 @@ export class ArticleController {
   @ApiNotFoundResponse({ description: 'Article not found.' })
   findOne(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ): Article {
+  ): Promise<Article> {
     return this.articleService.findOne(id);
   }
 
@@ -56,7 +56,7 @@ export class ArticleController {
   @ApiOperation({ summary: 'Create article.' })
   @ApiCreatedResponse({ description: 'Article created.' })
   @ApiBadRequestResponse({ description: 'Invalid body.' })
-  create(@Body() body: CreateArticleDto): Article {
+  create(@Body() body: CreateArticleDto): Promise<Article> {
     return this.articleService.create(body);
   }
 
@@ -68,7 +68,7 @@ export class ArticleController {
   update(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: UpdateArticleDto,
-  ): Article {
+  ): Promise<Article> {
     return this.articleService.update(id, body);
   }
 
@@ -78,7 +78,9 @@ export class ArticleController {
   @ApiNoContentResponse({ description: 'Article deleted.' })
   @ApiBadRequestResponse({ description: 'Invalid UUID.' })
   @ApiNotFoundResponse({ description: 'Article not found.' })
-  remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): void {
-    this.articleService.remove(id);
+  async remove(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<void> {
+    await this.articleService.remove(id);
   }
 }
