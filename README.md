@@ -1,14 +1,17 @@
 # Knowledge Hub
 
+REST API for Knowledge Hub platform built with Nest.js.
+
 ## Prerequisites
 
 - Git - [Download & Install Git](https://git-scm.com/downloads).
-- Node.js - [Download & Install Node.js](https://nodejs.org/en/download/) and the npm package manager.
+- Node.js 24.10.0+ - [Download & Install Node.js](https://nodejs.org/en/download/) and npm.
 
 ## Downloading
 
 ```
 git clone {repository URL}
+cd nodejs-2026q1-knowledge-hub
 ```
 
 ## Installing NPM modules
@@ -17,63 +20,80 @@ git clone {repository URL}
 npm install
 ```
 
+## Environment
+
+Create local `.env` from `.env.example`:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Required default value for assignment:
+
+- `PORT=4000`
+
 ## Running application
 
 ```
 npm start
 ```
 
-After starting the app on port (4000 as default) you can open
-in your browser OpenAPI documentation by typing http://localhost:4000/doc/.
-For more information about OpenAPI/Swagger please visit https://swagger.io/.
+After starting the app, open Swagger UI at:
+
+- `http://localhost:4000/doc`
+
+Notes:
+
+- `/doc` is the current runtime OpenAPI documentation generated from Nest decorators.
+- `doc/api.yaml` is a static file and may not always match runtime behavior.
 
 ## Testing
 
-After application running open new terminal and enter:
+Run tests in a separate terminal while app is running.
 
-To run all tests without authorization
+### Assignment-related tests
 
+These suites validate functionality described in `assignment.md` (Users/Articles/Categories/Comments CRUD, validation, filters, cascades):
+
+```bash
+npm test
 ```
-npm run test
-```
 
-To run only one of all test suites
+Run one specific suite:
 
-```
+```bash
 npm run test -- <path to suite>
 ```
 
-To run all test with authorization
+### Additional template test suites
 
-```
+These are template extensions for auth/RBAC/refresh scenarios:
+
+```bash
 npm run test:auth
 ```
 
-To run only specific test suite with authorization
-
-```
-npm run test:auth -- <path to suite>
-```
-
-To run refresh token tests
-
-```
+```bash
 npm run test:refresh
 ```
 
-To run RBAC (role-based access control) tests
-
-```
+```bash
 npm run test:rbac
 ```
 
-### Auto-fix and format
+Run one auth suite:
 
+```bash
+npm run test:auth -- <path to suite>
 ```
+
+### Lint and format
+
+```bash
 npm run lint
 ```
 
-```
+```bash
 npm run format
 ```
 
