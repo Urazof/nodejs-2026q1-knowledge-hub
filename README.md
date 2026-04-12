@@ -83,9 +83,7 @@ Adminer UI: `http://localhost:8080`
 
 ### Docker Hub image
 
-Set your real image link after pushing:
-
-- `https://hub.docker.com/r/<your-dockerhub-username>/knowledge-hub`
+- `https://hub.docker.com/r/urazof/knowledge-hub`
 
 ## Testing
 
