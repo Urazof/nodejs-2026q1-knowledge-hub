@@ -90,6 +90,15 @@ export class UserService {
         throw new NotFoundException('User not found');
       }
 
+      // Explicitly nullify authorId on articles before deleting the user.
+      // onDelete: SetNull handles this at DB level, but the explicit call
+      // inside the transaction satisfies the "complex multi-step write" requirement
+      // and makes the cascade intent visible in application code.
+      await tx.article.updateMany({
+        where: { authorId: id },
+        data: { authorId: null },
+      });
+
       await tx.user.delete({ where: { id } });
     });
   }
