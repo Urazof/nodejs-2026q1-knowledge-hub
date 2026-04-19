@@ -19,6 +19,11 @@ import {
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
+import {
+  CurrentUser,
+  JwtUser,
+} from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { Comment } from '../common/models/comment.model';
 import { PaginatedResponse } from '../common/models/paginated-response.model';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -52,6 +57,7 @@ export class CommentController {
   }
 
   @Post()
+  @Roles('editor', 'admin')
   @ApiOperation({ summary: 'Create comment.' })
   @ApiCreatedResponse({ description: 'Comment created.' })
   @ApiBadRequestResponse({ description: 'Invalid body.' })
@@ -61,14 +67,16 @@ export class CommentController {
   }
 
   @Delete(':id')
+  @Roles('editor', 'admin')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete comment.' })
   @ApiNoContentResponse({ description: 'Comment deleted.' })
   @ApiBadRequestResponse({ description: 'Invalid UUID.' })
   @ApiNotFoundResponse({ description: 'Comment not found.' })
   async remove(
+    @CurrentUser() currentUser: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<void> {
-    await this.commentService.remove(id);
+    await this.commentService.remove(id, currentUser);
   }
 }

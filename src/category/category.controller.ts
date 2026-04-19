@@ -19,6 +19,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { Category } from '../common/models/category.model';
 import { ListQueryDto } from '../common/dto/list-query.dto';
 import { PaginatedResponse } from '../common/models/paginated-response.model';
@@ -52,6 +53,7 @@ export class CategoryController {
   }
 
   @Post()
+  @Roles('admin')
   @ApiOperation({ summary: 'Create category.' })
   @ApiCreatedResponse({ description: 'Category created.' })
   @ApiBadRequestResponse({ description: 'Invalid body.' })
@@ -60,6 +62,7 @@ export class CategoryController {
   }
 
   @Put(':id')
+  @Roles('admin')
   @ApiOperation({ summary: 'Update category.' })
   @ApiOkResponse({ description: 'Category updated.' })
   @ApiBadRequestResponse({ description: 'Invalid UUID or body.' })
@@ -72,6 +75,7 @@ export class CategoryController {
   }
 
   @Delete(':id')
+  @Roles('admin')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete category.' })
   @ApiNoContentResponse({ description: 'Category deleted.' })

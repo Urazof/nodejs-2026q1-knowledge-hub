@@ -1,9 +1,11 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { JwtUser } from '../auth/decorators/current-user.decorator';
 import { Comment } from '../common/models/comment.model';
 import { PaginatedResponse } from '../common/models/paginated-response.model';
 import {
@@ -89,11 +91,18 @@ export class CommentService {
     return this.mapPrismaComment(comment);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, currentUser?: JwtUser): Promise<void> {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
 
     if (!comment) {
       throw new NotFoundException('Comment not found');
+    }
+
+    if (
+      currentUser?.role === 'editor' &&
+      comment.authorId !== currentUser.userId
+    ) {
+      throw new ForbiddenException('You can only delete your own comments');
     }
 
     await this.prisma.comment.delete({ where: { id } });
