@@ -1,12 +1,12 @@
 import { authRoutes } from '../endpoints';
 import promoteUserRole from './promoteUserRole';
 
-const createUserDto = {
-  login: 'TEST_AUTH_LOGIN',
-  password: 'Tu6!@#%&',
-};
-
 const getTokenAndUserId = async (request) => {
+  const createUserDto = {
+    login: `TEST_AUTH_LOGIN_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    password: 'Tu6!@#%&',
+  };
+
   // create user (signup always yields a viewer per spec)
   const {
     body: { id: mockUserId },

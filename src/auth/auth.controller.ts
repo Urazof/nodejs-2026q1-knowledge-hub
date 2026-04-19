@@ -1,16 +1,26 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService, TokenPair } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
+import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { SignupDto } from './dto/signup.dto';
 
@@ -21,6 +31,7 @@ export class AuthController {
 
   @Post('signup')
   @Public()
+  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new user.' })
   @ApiCreatedResponse({ description: 'User created successfully.' })
@@ -35,6 +46,7 @@ export class AuthController {
 
   @Post('login')
   @Public()
+  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login and receive token pair.' })
   @ApiOkResponse({ description: 'Access and refresh tokens returned.' })
@@ -53,5 +65,14 @@ export class AuthController {
   @ApiForbiddenResponse({ description: 'Refresh token is invalid or expired.' })
   refresh(@Body() dto: RefreshDto): Promise<TokenPair> {
     return this.authService.refresh(dto);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Logout and invalidate refresh token.' })
+  @ApiNoContentResponse({ description: 'Logged out successfully.' })
+  @ApiUnauthorizedResponse({ description: 'No refresh token provided.' })
+  logout(@Body() dto: LogoutDto): void {
+    this.authService.logout(dto);
   }
 }

@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { UserRole as PrismaUserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { SignupDto } from './dto/signup.dto';
 
@@ -25,6 +26,8 @@ export interface TokenPair {
 
 @Injectable()
 export class AuthService {
+  private readonly tokenBlacklist = new Set<string>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -86,6 +89,10 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is required');
     }
 
+    if (this.tokenBlacklist.has(dto.refreshToken)) {
+      throw new ForbiddenException('Refresh token has been invalidated');
+    }
+
     let payload: TokenPayload;
 
     try {
@@ -109,6 +116,12 @@ export class AuthService {
       login: user.login,
       role: user.role.toLowerCase(),
     });
+  }
+
+  logout(dto: LogoutDto): void {
+    if (dto.refreshToken) {
+      this.tokenBlacklist.add(dto.refreshToken);
+    }
   }
 
   private generateTokenPair(payload: TokenPayload): TokenPair {
