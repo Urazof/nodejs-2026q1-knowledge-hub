@@ -4,12 +4,12 @@ import { ArticleModule } from './article/article.module';
 import { CategoryModule } from './category/category.module';
 import { CommentModule } from './comment/comment.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
-import { StorageModule } from './storage/storage.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
-    StorageModule,
+    PrismaModule,
     UserModule,
     ArticleModule,
     CategoryModule,

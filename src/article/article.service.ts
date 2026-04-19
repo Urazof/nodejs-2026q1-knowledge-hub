@@ -1,5 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { ArticleStatus as PrismaArticleStatus, Prisma } from '@prisma/client';
 import { ArticleStatus } from '../common/enums/article-status.enum';
 import { Article } from '../common/models/article.model';
 import { PaginatedResponse } from '../common/models/paginated-response.model';
@@ -8,33 +12,44 @@ import {
   shouldPaginate,
   sortItems,
 } from '../common/utils/list-query.util';
-import { InMemoryDbService } from '../storage/in-memory-db.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { ArticleFilterQueryDto } from './dto/article-filter-query.dto';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 
 @Injectable()
 export class ArticleService {
-  constructor(private readonly db: InMemoryDbService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAll(
+  async findAll(
     filters: ArticleFilterQueryDto = {},
-  ): Article[] | PaginatedResponse<Article> {
-    const filtered = this.db.articles.filter((article) => {
-      if (filters.status && article.status !== filters.status) {
-        return false;
-      }
+  ): Promise<Article[] | PaginatedResponse<Article>> {
+    const where: Prisma.ArticleWhereInput = {};
 
-      if (filters.categoryId && article.categoryId !== filters.categoryId) {
-        return false;
-      }
+    if (filters.status) {
+      where.status = this.toPrismaArticleStatus(filters.status);
+    }
 
-      if (filters.tag && !article.tags.includes(filters.tag)) {
-        return false;
-      }
+    if (filters.categoryId) {
+      where.categoryId = filters.categoryId;
+    }
 
-      return true;
-    });
+    if (filters.tag) {
+      where.tags = { some: { name: filters.tag } };
+    }
+
+    const filtered = (
+      await this.prisma.article.findMany({
+        where,
+        include: {
+          tags: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      })
+    ).map((article) => this.mapPrismaArticle(article));
 
     const sorted = sortItems(filtered, filters.sortBy, filters.order ?? 'asc', [
       'id',
@@ -54,77 +69,179 @@ export class ArticleService {
     return sorted;
   }
 
-  findOne(id: string): Article {
+  async findOne(id: string): Promise<Article> {
     return this.findOneOrThrow(id);
   }
 
-  create(payload: CreateArticleDto): Article {
-    const now = Date.now();
-    const article: Article = {
-      id: randomUUID(),
-      title: payload.title,
-      content: payload.content,
-      status: payload.status ?? ArticleStatus.DRAFT,
-      authorId: payload.authorId ?? null,
-      categoryId: payload.categoryId ?? null,
-      tags: payload.tags ?? [],
-      createdAt: now,
-      updatedAt: now,
+  async create(payload: CreateArticleDto): Promise<Article> {
+    await this.validateRelations(payload.authorId, payload.categoryId);
+
+    const article = await this.prisma.article.create({
+      data: {
+        title: payload.title,
+        content: payload.content,
+        status: this.toPrismaArticleStatus(
+          payload.status ?? ArticleStatus.DRAFT,
+        ),
+        authorId: payload.authorId ?? null,
+        categoryId: payload.categoryId ?? null,
+        tags: {
+          connectOrCreate: this.toTagConnectOrCreate(payload.tags),
+        },
+      },
+      include: {
+        tags: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    return this.mapPrismaArticle(article);
+  }
+
+  async update(id: string, payload: UpdateArticleDto): Promise<Article> {
+    await this.findOneOrThrow(id);
+
+    if (payload.authorId !== undefined || payload.categoryId !== undefined) {
+      await this.validateRelations(payload.authorId, payload.categoryId);
+    }
+
+    const updateData: Prisma.ArticleUpdateInput = {
+      ...(payload.title !== undefined && { title: payload.title }),
+      ...(payload.content !== undefined && { content: payload.content }),
+      ...(payload.status !== undefined && {
+        status: this.toPrismaArticleStatus(payload.status),
+      }),
+      ...(payload.authorId !== undefined && { authorId: payload.authorId }),
+      ...(payload.categoryId !== undefined && {
+        categoryId: payload.categoryId,
+      }),
     };
 
-    this.db.articles.push(article);
-    return article;
-  }
-
-  update(id: string, payload: UpdateArticleDto): Article {
-    const article = this.findOneOrThrow(id);
-
-    if (payload.title !== undefined) {
-      article.title = payload.title;
-    }
-
-    if (payload.content !== undefined) {
-      article.content = payload.content;
-    }
-
-    if (payload.status !== undefined) {
-      article.status = payload.status;
-    }
-
-    if (payload.authorId !== undefined) {
-      article.authorId = payload.authorId;
-    }
-
-    if (payload.categoryId !== undefined) {
-      article.categoryId = payload.categoryId;
-    }
-
     if (payload.tags !== undefined) {
-      article.tags = payload.tags;
+      updateData.tags = {
+        set: [],
+        connectOrCreate: this.toTagConnectOrCreate(payload.tags),
+      };
     }
 
-    article.updatedAt = Date.now();
-    return article;
+    const article = await this.prisma.article.update({
+      where: { id },
+      data: updateData,
+      include: {
+        tags: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    return this.mapPrismaArticle(article);
   }
 
-  remove(id: string): void {
-    const article = this.findOneOrThrow(id);
-    const index = this.db.articles.findIndex((item) => item.id === article.id);
-    this.db.articles.splice(index, 1);
-
-    const commentsToKeep = this.db.comments.filter(
-      (comment) => comment.articleId !== article.id,
-    );
-    this.db.comments.splice(0, this.db.comments.length, ...commentsToKeep);
+  async remove(id: string): Promise<void> {
+    await this.findOneOrThrow(id);
+    await this.prisma.article.delete({ where: { id } });
   }
 
-  private findOneOrThrow(id: string): Article {
-    const article = this.db.articles.find((item) => item.id === id);
+  private async findOneOrThrow(id: string): Promise<Article> {
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+      include: {
+        tags: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
 
     if (!article) {
       throw new NotFoundException('Article not found');
     }
 
-    return article;
+    return this.mapPrismaArticle(article);
+  }
+
+  private mapPrismaArticle(
+    article: Prisma.ArticleGetPayload<{
+      include: {
+        tags: {
+          select: {
+            name: true;
+          };
+        };
+      };
+    }>,
+  ): Article {
+    return {
+      id: article.id,
+      title: article.title,
+      content: article.content,
+      status: this.fromPrismaArticleStatus(article.status),
+      authorId: article.authorId,
+      categoryId: article.categoryId,
+      tags: article.tags.map((tag) => tag.name),
+      createdAt: article.createdAt.getTime(),
+      updatedAt: article.updatedAt.getTime(),
+    };
+  }
+
+  private fromPrismaArticleStatus(status: PrismaArticleStatus): ArticleStatus {
+    switch (status) {
+      case PrismaArticleStatus.PUBLISHED:
+        return ArticleStatus.PUBLISHED;
+      case PrismaArticleStatus.ARCHIVED:
+        return ArticleStatus.ARCHIVED;
+      default:
+        return ArticleStatus.DRAFT;
+    }
+  }
+
+  private toPrismaArticleStatus(status: ArticleStatus): PrismaArticleStatus {
+    switch (status) {
+      case ArticleStatus.PUBLISHED:
+        return PrismaArticleStatus.PUBLISHED;
+      case ArticleStatus.ARCHIVED:
+        return PrismaArticleStatus.ARCHIVED;
+      default:
+        return PrismaArticleStatus.DRAFT;
+    }
+  }
+
+  private toTagConnectOrCreate(
+    tags: string[] | undefined,
+  ): Prisma.TagCreateOrConnectWithoutArticlesInput[] {
+    const uniqueTags = [...new Set(tags ?? [])];
+    return uniqueTags.map((name) => ({
+      where: { name },
+      create: { name },
+    }));
+  }
+
+  private async validateRelations(
+    authorId: string | null | undefined,
+    categoryId: string | null | undefined,
+  ): Promise<void> {
+    if (authorId !== undefined && authorId !== null) {
+      const author = await this.prisma.user.findUnique({
+        where: { id: authorId },
+      });
+      if (!author) {
+        throw new UnprocessableEntityException('authorId does not exist');
+      }
+    }
+
+    if (categoryId !== undefined && categoryId !== null) {
+      const category = await this.prisma.category.findUnique({
+        where: { id: categoryId },
+      });
+      if (!category) {
+        throw new UnprocessableEntityException('categoryId does not exist');
+      }
+    }
   }
 }

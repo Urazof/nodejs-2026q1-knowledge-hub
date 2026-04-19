@@ -6,6 +6,7 @@ REST API for Knowledge Hub platform built with Nest.js.
 
 - Git - [Download & Install Git](https://git-scm.com/downloads).
 - Node.js 24.10.0+ - [Download & Install Node.js](https://nodejs.org/en/download/) and npm.
+- Docker - [Download & Install Docker](https://docs.docker.com/engine/install/).
 
 ## Downloading
 
@@ -46,6 +47,43 @@ Notes:
 
 - `/doc` is the current runtime OpenAPI documentation generated from Nest decorators.
 - `doc/api.yaml` is a static file and may not always match runtime behavior.
+
+## Docker (Foundation for Prisma/PostgreSQL)
+
+This repository includes Docker runtime infrastructure for the current in-memory API and for the upcoming Prisma migration step.
+
+### Run with Docker Compose
+
+```powershell
+Copy-Item .env.example .env
+docker-compose up --build
+```
+
+After startup:
+
+- API: `http://localhost:4000/user`
+- Swagger: `http://localhost:4000/doc`
+- PostgreSQL: `localhost:5432`
+
+Check service health:
+
+```powershell
+docker-compose ps
+docker-compose logs app
+docker-compose logs db
+```
+
+### Optional Adminer (debug profile)
+
+```powershell
+docker-compose --profile debug up --build
+```
+
+Adminer UI: `http://localhost:8080`
+
+### Docker Hub image
+
+- `https://hub.docker.com/r/urazof/knowledge-hub`
 
 ## Testing
 

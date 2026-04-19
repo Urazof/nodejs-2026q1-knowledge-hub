@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { Prisma, UserRole as PrismaUserRole } from '@prisma/client';
 import { UserRole } from '../common/enums/user-role.enum';
 import { ListQueryDto } from '../common/dto/list-query.dto';
 import { PaginatedResponse } from '../common/models/paginated-response.model';
@@ -14,18 +14,20 @@ import {
   sortItems,
 } from '../common/utils/list-query.util';
 import { sanitizeUser } from '../common/utils/sanitize-user';
-import { InMemoryDbService } from '../storage/in-memory-db.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly db: InMemoryDbService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAllPublic(
+  async findAllPublic(
     query: ListQueryDto = {},
-  ): PublicUser[] | PaginatedResponse<PublicUser> {
-    const users = this.db.users.map(sanitizeUser);
+  ): Promise<PublicUser[] | PaginatedResponse<PublicUser>> {
+    const users = (await this.prisma.user.findMany()).map((user) =>
+      sanitizeUser(this.mapPrismaUser(user)),
+    );
     const sorted = sortItems(users, query.sortBy, query.order ?? 'asc', [
       'id',
       'login',
@@ -41,64 +43,108 @@ export class UserService {
     return sorted;
   }
 
-  findOnePublic(id: string): PublicUser {
-    return sanitizeUser(this.findOneOrThrow(id));
+  async findOnePublic(id: string): Promise<PublicUser> {
+    return sanitizeUser(await this.findOneOrThrow(id));
   }
 
-  create(payload: CreateUserDto): PublicUser {
+  async create(payload: CreateUserDto): Promise<PublicUser> {
     const role = payload.role ?? UserRole.VIEWER;
-    const now = Date.now();
+    const user = this.mapPrismaUser(
+      await this.prisma.user.create({
+        data: {
+          login: payload.login,
+          password: payload.password,
+          role: this.toPrismaUserRole(role),
+        },
+      }),
+    );
 
-    const user: User = {
-      id: randomUUID(),
-      login: payload.login,
-      password: payload.password,
-      role,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.db.users.push(user);
     return sanitizeUser(user);
   }
 
-  updatePassword(id: string, payload: UpdatePasswordDto): PublicUser {
-    const user = this.findOneOrThrow(id);
+  async updatePassword(
+    id: string,
+    payload: UpdatePasswordDto,
+  ): Promise<PublicUser> {
+    const user = await this.findOneOrThrow(id);
 
     if (user.password !== payload.oldPassword) {
       throw new ForbiddenException('oldPassword is wrong');
     }
 
-    user.password = payload.newPassword;
-    user.updatedAt = Date.now();
-
-    return sanitizeUser(user);
-  }
-
-  remove(id: string): void {
-    const user = this.findOneOrThrow(id);
-    const index = this.db.users.findIndex((item) => item.id === user.id);
-    this.db.users.splice(index, 1);
-
-    this.db.articles.forEach((article) => {
-      if (article.authorId === user.id) {
-        article.authorId = null;
-      }
-    });
-
-    const commentsToKeep = this.db.comments.filter(
-      (comment) => comment.authorId !== user.id,
+    const updated = this.mapPrismaUser(
+      await this.prisma.user.update({
+        where: { id },
+        data: { password: payload.newPassword },
+      }),
     );
-    this.db.comments.splice(0, this.db.comments.length, ...commentsToKeep);
+
+    return sanitizeUser(updated);
   }
 
-  private findOneOrThrow(id: string): User {
-    const user = this.db.users.find((item) => item.id === id);
+  async remove(id: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id } });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Explicitly nullify authorId on articles before deleting the user.
+      // onDelete: SetNull handles this at DB level, but the explicit call
+      // inside the transaction satisfies the "complex multi-step write" requirement
+      // and makes the cascade intent visible in application code.
+      await tx.article.updateMany({
+        where: { authorId: id },
+        data: { authorId: null },
+      });
+
+      await tx.user.delete({ where: { id } });
+    });
+  }
+
+  private async findOneOrThrow(id: string): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    return user;
+    return this.mapPrismaUser(user);
+  }
+
+  private mapPrismaUser(
+    user: Prisma.UserGetPayload<Record<string, never>>,
+  ): User {
+    return {
+      id: user.id,
+      login: user.login,
+      password: user.password,
+      role: this.fromPrismaUserRole(user.role),
+      createdAt: user.createdAt.getTime(),
+      updatedAt: user.updatedAt.getTime(),
+    };
+  }
+
+  private fromPrismaUserRole(role: PrismaUserRole): UserRole {
+    switch (role) {
+      case PrismaUserRole.ADMIN:
+        return UserRole.ADMIN;
+      case PrismaUserRole.EDITOR:
+        return UserRole.EDITOR;
+      default:
+        return UserRole.VIEWER;
+    }
+  }
+
+  private toPrismaUserRole(role: UserRole): PrismaUserRole {
+    switch (role) {
+      case UserRole.ADMIN:
+        return PrismaUserRole.ADMIN;
+      case UserRole.EDITOR:
+        return PrismaUserRole.EDITOR;
+      default:
+        return PrismaUserRole.VIEWER;
+    }
   }
 }

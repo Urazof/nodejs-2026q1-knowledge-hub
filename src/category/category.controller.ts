@@ -36,7 +36,7 @@ export class CategoryController {
   @ApiOkResponse({ description: 'Categories returned.' })
   findAll(
     @Query() query: ListQueryDto,
-  ): Category[] | PaginatedResponse<Category> {
+  ): Promise<Category[] | PaginatedResponse<Category>> {
     return this.categoryService.findAll(query);
   }
 
@@ -47,7 +47,7 @@ export class CategoryController {
   @ApiNotFoundResponse({ description: 'Category not found.' })
   findOne(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ): Category {
+  ): Promise<Category> {
     return this.categoryService.findOne(id);
   }
 
@@ -55,7 +55,7 @@ export class CategoryController {
   @ApiOperation({ summary: 'Create category.' })
   @ApiCreatedResponse({ description: 'Category created.' })
   @ApiBadRequestResponse({ description: 'Invalid body.' })
-  create(@Body() body: CreateCategoryDto): Category {
+  create(@Body() body: CreateCategoryDto): Promise<Category> {
     return this.categoryService.create(body);
   }
 
@@ -67,7 +67,7 @@ export class CategoryController {
   update(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: UpdateCategoryDto,
-  ): Category {
+  ): Promise<Category> {
     return this.categoryService.update(id, body);
   }
 
@@ -77,7 +77,9 @@ export class CategoryController {
   @ApiNoContentResponse({ description: 'Category deleted.' })
   @ApiBadRequestResponse({ description: 'Invalid UUID.' })
   @ApiNotFoundResponse({ description: 'Category not found.' })
-  remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): void {
-    this.categoryService.remove(id);
+  async remove(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<void> {
+    await this.categoryService.remove(id);
   }
 }

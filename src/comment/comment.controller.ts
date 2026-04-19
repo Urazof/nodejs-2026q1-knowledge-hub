@@ -36,7 +36,7 @@ export class CommentController {
   @ApiBadRequestResponse({ description: 'Invalid or missing articleId.' })
   findAllByArticle(
     @Query() query: CommentListQueryDto,
-  ): Comment[] | PaginatedResponse<Comment> {
+  ): Promise<Comment[] | PaginatedResponse<Comment>> {
     return this.commentService.findByArticleId(query);
   }
 
@@ -47,7 +47,7 @@ export class CommentController {
   @ApiNotFoundResponse({ description: 'Comment not found.' })
   findOne(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ): Comment {
+  ): Promise<Comment> {
     return this.commentService.findOne(id);
   }
 
@@ -56,7 +56,7 @@ export class CommentController {
   @ApiCreatedResponse({ description: 'Comment created.' })
   @ApiBadRequestResponse({ description: 'Invalid body.' })
   @ApiUnprocessableEntityResponse({ description: 'articleId does not exist.' })
-  create(@Body() body: CreateCommentDto): Comment {
+  create(@Body() body: CreateCommentDto): Promise<Comment> {
     return this.commentService.create(body);
   }
 
@@ -66,7 +66,9 @@ export class CommentController {
   @ApiNoContentResponse({ description: 'Comment deleted.' })
   @ApiBadRequestResponse({ description: 'Invalid UUID.' })
   @ApiNotFoundResponse({ description: 'Comment not found.' })
-  remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): void {
-    this.commentService.remove(id);
+  async remove(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<void> {
+    await this.commentService.remove(id);
   }
 }
