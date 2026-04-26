@@ -99,10 +99,7 @@ export class AppLogger extends ConsoleLogger {
     const { size } = fs.statSync(this.logFilePath);
     if (size < this.maxFileSizeBytes) return;
 
-    const ts = new Date()
-      .toISOString()
-      .replace(/:/g, '-')
-      .replace(/\..+/, '');
+    const ts = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
     const rotated = this.logFilePath.replace('app.log', `app-${ts}.log`);
     fs.renameSync(this.logFilePath, rotated);
   }

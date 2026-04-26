@@ -10,7 +10,13 @@ import { Request, Response } from 'express';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
-const SENSITIVE_KEYS = new Set(['password', 'token', 'accesstoken', 'refreshtoken', 'authorization']);
+const SENSITIVE_KEYS = new Set([
+  'password',
+  'token',
+  'accesstoken',
+  'refreshtoken',
+  'authorization',
+]);
 
 function sanitize(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value;
@@ -18,7 +24,9 @@ function sanitize(value: unknown): unknown {
 
   const result: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    result[k] = SENSITIVE_KEYS.has(k.toLowerCase()) ? '[REDACTED]' : sanitize(v);
+    result[k] = SENSITIVE_KEYS.has(k.toLowerCase())
+      ? '[REDACTED]'
+      : sanitize(v);
   }
   return result;
 }
@@ -30,7 +38,9 @@ export class LoggingInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context
       .switchToHttp()
-      .getRequest<Request & { query: Record<string, unknown>; body: unknown }>();
+      .getRequest<
+        Request & { query: Record<string, unknown>; body: unknown }
+      >();
 
     const { method, url, query, body } = request;
     const startedAt = Date.now();
@@ -50,11 +60,8 @@ export class LoggingInterceptor implements NestInterceptor {
         },
         error: (err: unknown) => {
           const elapsed = Date.now() - startedAt;
-          const status =
-            err instanceof HttpException ? err.getStatus() : 500;
-          this.logger.error(
-            `<-- ${method} ${url} ${status} ${elapsed}ms`,
-          );
+          const status = err instanceof HttpException ? err.getStatus() : 500;
+          this.logger.error(`<-- ${method} ${url} ${status} ${elapsed}ms`);
         },
       }),
     );

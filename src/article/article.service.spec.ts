@@ -67,7 +67,9 @@ describe('ArticleService', () => {
 
     it('throws NotFoundError when article does not exist', async () => {
       prisma.article.findUnique.mockResolvedValue(null);
-      await expect(service.findOne('missing')).rejects.toBeInstanceOf(NotFoundError);
+      await expect(service.findOne('missing')).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
     });
   });
 
@@ -102,7 +104,9 @@ describe('ArticleService', () => {
 
   describe('update', () => {
     it('allows admin to update any article', async () => {
-      prisma.article.findUnique.mockResolvedValue(makeDbArticle({ authorId: 'other-user' }));
+      prisma.article.findUnique.mockResolvedValue(
+        makeDbArticle({ authorId: 'other-user' }),
+      );
       prisma.article.update.mockResolvedValue(makeDbArticle());
 
       const result = await service.update(
@@ -114,7 +118,9 @@ describe('ArticleService', () => {
     });
 
     it('allows editor to update their own article', async () => {
-      prisma.article.findUnique.mockResolvedValue(makeDbArticle({ authorId: 'editor-id' }));
+      prisma.article.findUnique.mockResolvedValue(
+        makeDbArticle({ authorId: 'editor-id' }),
+      );
       prisma.article.update.mockResolvedValue(makeDbArticle());
 
       await expect(
@@ -127,7 +133,9 @@ describe('ArticleService', () => {
     });
 
     it('throws ForbiddenException when editor tries to update another author article', async () => {
-      prisma.article.findUnique.mockResolvedValue(makeDbArticle({ authorId: 'other-user' }));
+      prisma.article.findUnique.mockResolvedValue(
+        makeDbArticle({ authorId: 'other-user' }),
+      );
 
       await expect(
         service.update(
@@ -140,7 +148,9 @@ describe('ArticleService', () => {
 
     it('throws NotFoundError when article does not exist', async () => {
       prisma.article.findUnique.mockResolvedValue(null);
-      await expect(service.update('missing', {})).rejects.toBeInstanceOf(NotFoundError);
+      await expect(service.update('missing', {})).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
     });
   });
 
@@ -153,7 +163,9 @@ describe('ArticleService', () => {
 
     it('throws NotFoundError when article does not exist', async () => {
       prisma.article.findUnique.mockResolvedValue(null);
-      await expect(service.remove('missing')).rejects.toBeInstanceOf(NotFoundError);
+      await expect(service.remove('missing')).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
     });
   });
 });

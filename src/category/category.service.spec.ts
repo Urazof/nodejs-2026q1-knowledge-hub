@@ -51,14 +51,19 @@ describe('CategoryService', () => {
 
     it('throws NotFoundException when category not found', async () => {
       prisma.category.findUnique.mockResolvedValue(null);
-      await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('missing')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('create', () => {
     it('creates and returns category', async () => {
       prisma.category.create.mockResolvedValue(makeCat());
-      const result = await service.create({ name: 'Tech', description: 'Desc' });
+      const result = await service.create({
+        name: 'Tech',
+        description: 'Desc',
+      });
       expect(result.name).toBe('Tech');
     });
   });
@@ -66,14 +71,19 @@ describe('CategoryService', () => {
   describe('update', () => {
     it('updates category when found', async () => {
       prisma.category.findUnique.mockResolvedValue(makeCat());
-      prisma.category.update.mockResolvedValue({ ...makeCat(), name: 'Updated' });
+      prisma.category.update.mockResolvedValue({
+        ...makeCat(),
+        name: 'Updated',
+      });
       const result = await service.update('cat-1', { name: 'Updated' });
       expect(result.name).toBe('Updated');
     });
 
     it('throws NotFoundException when category not found', async () => {
       prisma.category.findUnique.mockResolvedValue(null);
-      await expect(service.update('missing', { name: 'X' })).rejects.toThrow(NotFoundException);
+      await expect(service.update('missing', { name: 'X' })).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -86,7 +96,9 @@ describe('CategoryService', () => {
 
     it('throws NotFoundException when category not found', async () => {
       prisma.category.findUnique.mockResolvedValue(null);
-      await expect(service.remove('missing')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('missing')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

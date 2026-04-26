@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { CommentService } from './comment.service';
 
 const makeDbComment = (overrides = {}) => ({
@@ -49,7 +53,11 @@ describe('CommentService', () => {
 
     it('returns paginated response when page/limit provided', async () => {
       prisma.comment.findMany.mockResolvedValue([makeDbComment()]);
-      const result = await service.findByArticleId({ articleId: 'art-1', page: 1, limit: 5 });
+      const result = await service.findByArticleId({
+        articleId: 'art-1',
+        page: 1,
+        limit: 5,
+      });
       expect(result).toHaveProperty('total');
     });
   });
@@ -63,7 +71,9 @@ describe('CommentService', () => {
 
     it('throws NotFoundException when comment not found', async () => {
       prisma.comment.findUnique.mockResolvedValue(null);
-      await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('missing')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -71,7 +81,10 @@ describe('CommentService', () => {
     it('creates comment when article exists', async () => {
       prisma.article.findUnique.mockResolvedValue({ id: 'art-1' });
       prisma.comment.create.mockResolvedValue(makeDbComment());
-      const result = await service.create({ content: 'Nice', articleId: 'art-1' });
+      const result = await service.create({
+        content: 'Nice',
+        articleId: 'art-1',
+      });
       expect(result.content).toBe('Great article');
     });
 
@@ -86,38 +99,62 @@ describe('CommentService', () => {
       prisma.article.findUnique.mockResolvedValue({ id: 'art-1' });
       prisma.user.findUnique.mockResolvedValue(null);
       await expect(
-        service.create({ content: 'x', articleId: 'art-1', authorId: 'bad-user' }),
+        service.create({
+          content: 'x',
+          articleId: 'art-1',
+          authorId: 'bad-user',
+        }),
       ).rejects.toThrow(UnprocessableEntityException);
     });
   });
 
   describe('remove', () => {
     it('deletes comment when admin removes any comment', async () => {
-      prisma.comment.findUnique.mockResolvedValue(makeDbComment({ authorId: 'other' }));
+      prisma.comment.findUnique.mockResolvedValue(
+        makeDbComment({ authorId: 'other' }),
+      );
       prisma.comment.delete.mockResolvedValue(undefined);
       await expect(
-        service.remove('cmt-1', { userId: 'admin', login: 'admin', role: 'admin' }),
+        service.remove('cmt-1', {
+          userId: 'admin',
+          login: 'admin',
+          role: 'admin',
+        }),
       ).resolves.toBeUndefined();
     });
 
     it('allows editor to delete their own comment', async () => {
-      prisma.comment.findUnique.mockResolvedValue(makeDbComment({ authorId: 'editor-id' }));
+      prisma.comment.findUnique.mockResolvedValue(
+        makeDbComment({ authorId: 'editor-id' }),
+      );
       prisma.comment.delete.mockResolvedValue(undefined);
       await expect(
-        service.remove('cmt-1', { userId: 'editor-id', login: 'ed', role: 'editor' }),
+        service.remove('cmt-1', {
+          userId: 'editor-id',
+          login: 'ed',
+          role: 'editor',
+        }),
       ).resolves.toBeUndefined();
     });
 
     it('throws ForbiddenException when editor tries to delete another user comment', async () => {
-      prisma.comment.findUnique.mockResolvedValue(makeDbComment({ authorId: 'other-user' }));
+      prisma.comment.findUnique.mockResolvedValue(
+        makeDbComment({ authorId: 'other-user' }),
+      );
       await expect(
-        service.remove('cmt-1', { userId: 'editor-id', login: 'ed', role: 'editor' }),
+        service.remove('cmt-1', {
+          userId: 'editor-id',
+          login: 'ed',
+          role: 'editor',
+        }),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('throws NotFoundException when comment not found', async () => {
       prisma.comment.findUnique.mockResolvedValue(null);
-      await expect(service.remove('missing')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('missing')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

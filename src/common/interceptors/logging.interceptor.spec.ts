@@ -23,8 +23,12 @@ describe('LoggingInterceptor', () => {
 
   beforeEach(() => {
     interceptor = new LoggingInterceptor();
-    logSpy = vi.spyOn(interceptor['logger'], 'log').mockImplementation(() => undefined);
-    errorSpy = vi.spyOn(interceptor['logger'], 'error').mockImplementation(() => undefined);
+    logSpy = vi
+      .spyOn(interceptor['logger'], 'log')
+      .mockImplementation(() => undefined);
+    errorSpy = vi
+      .spyOn(interceptor['logger'], 'error')
+      .mockImplementation(() => undefined);
   });
 
   it('logs incoming request with method and url', () => {
@@ -36,24 +40,30 @@ describe('LoggingInterceptor', () => {
   it('logs response with status code on success', () =>
     new Promise<void>((resolve) => {
       const handler = { handle: () => of(null) };
-      interceptor.intercept(makeContext() as never, handler as never).subscribe({
-        complete: () => {
-          expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('200'));
-          resolve();
-        },
-      });
+      interceptor
+        .intercept(makeContext() as never, handler as never)
+        .subscribe({
+          complete: () => {
+            expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('200'));
+            resolve();
+          },
+        });
     }));
 
   it('logs error with status code when handler throws HttpException', () =>
     new Promise<void>((resolve) => {
       const ex = new HttpException('Not found', HttpStatus.NOT_FOUND);
       const handler = { handle: () => throwError(() => ex) };
-      interceptor.intercept(makeContext() as never, handler as never).subscribe({
-        error: () => {
-          expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('404'));
-          resolve();
-        },
-      });
+      interceptor
+        .intercept(makeContext() as never, handler as never)
+        .subscribe({
+          error: () => {
+            expect(errorSpy).toHaveBeenCalledWith(
+              expect.stringContaining('404'),
+            );
+            resolve();
+          },
+        });
     }));
 
   it('redacts password field in request body', () => {

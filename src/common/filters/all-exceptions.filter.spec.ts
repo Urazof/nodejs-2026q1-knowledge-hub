@@ -23,7 +23,10 @@ describe('AllExceptionsFilter', () => {
 
   it('returns correct status and body for HttpException', () => {
     const host = makeHost();
-    const ex = new HttpException({ message: 'Not found', statusCode: 404 }, HttpStatus.NOT_FOUND);
+    const ex = new HttpException(
+      { message: 'Not found', statusCode: 404 },
+      HttpStatus.NOT_FOUND,
+    );
     filter.catch(ex, host as never);
     expect(host.status).toHaveBeenCalledWith(404);
   });

@@ -19,7 +19,10 @@ const makeContext = ({
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
-  let jwtService: { verify: ReturnType<typeof vi.fn>; sign: ReturnType<typeof vi.fn> };
+  let jwtService: {
+    verify: ReturnType<typeof vi.fn>;
+    sign: ReturnType<typeof vi.fn>;
+  };
   let reflector: { getAllAndOverride: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
@@ -55,7 +58,9 @@ describe('JwtAuthGuard', () => {
   it('sets request.user and returns true for valid token', () => {
     const payload = { userId: 'u1', login: 'alice', role: 'viewer' };
     jwtService.verify.mockReturnValue(payload);
-    const request: Record<string, unknown> = { headers: { authorization: 'Bearer good_token' } };
+    const request: Record<string, unknown> = {
+      headers: { authorization: 'Bearer good_token' },
+    };
     const ctx = {
       getHandler: () => ({}),
       getClass: () => ({}),

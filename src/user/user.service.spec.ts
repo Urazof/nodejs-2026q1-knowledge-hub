@@ -61,7 +61,9 @@ describe('UserService', () => {
 
     it('throws NotFoundError when user does not exist', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
-      await expect(service.findOnePublic('missing')).rejects.toBeInstanceOf(NotFoundError);
+      await expect(service.findOnePublic('missing')).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
     });
   });
 
@@ -69,7 +71,11 @@ describe('UserService', () => {
     it('hashes password and returns PublicUser', async () => {
       const dbUser = makeUser({ role: PrismaUserRole.VIEWER });
       prisma.user.create.mockResolvedValue(dbUser);
-      const result = await service.create({ login: 'alice', password: 'pass123', role: undefined });
+      const result = await service.create({
+        login: 'alice',
+        password: 'pass123',
+        role: undefined,
+      });
       expect(bcrypt.hash).toHaveBeenCalledWith('pass123', expect.any(Number));
       expect(result).not.toHaveProperty('password');
       expect(result.login).toBe('alice');
@@ -96,46 +102,58 @@ describe('UserService', () => {
       vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
       await expect(
-        service.updatePassword('user-1', { oldPassword: 'wrong', newPassword: 'new' }),
+        service.updatePassword('user-1', {
+          oldPassword: 'wrong',
+          newPassword: 'new',
+        }),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('throws NotFoundError when user does not exist', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       await expect(
-        service.updatePassword('missing', { oldPassword: 'x', newPassword: 'y' }),
+        service.updatePassword('missing', {
+          oldPassword: 'x',
+          newPassword: 'y',
+        }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
   });
 
   describe('remove', () => {
     it('executes transaction to nullify articles then delete user', async () => {
-      prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
-        const tx = {
-          user: {
-            findUnique: vi.fn().mockResolvedValue(makeUser()),
-            delete: vi.fn().mockResolvedValue(undefined),
-          },
-          article: {
-            updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-          },
-        };
-        return fn(tx);
-      });
+      prisma.$transaction.mockImplementation(
+        async (fn: (tx: unknown) => Promise<void>) => {
+          const tx = {
+            user: {
+              findUnique: vi.fn().mockResolvedValue(makeUser()),
+              delete: vi.fn().mockResolvedValue(undefined),
+            },
+            article: {
+              updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+            },
+          };
+          return fn(tx);
+        },
+      );
 
       await expect(service.remove('user-1')).resolves.toBeUndefined();
     });
 
     it('throws NotFoundError inside transaction when user does not exist', async () => {
-      prisma.$transaction.mockImplementation(async (fn: (tx: unknown) => Promise<void>) => {
-        const tx = {
-          user: { findUnique: vi.fn().mockResolvedValue(null) },
-          article: { updateMany: vi.fn() },
-        };
-        return fn(tx);
-      });
+      prisma.$transaction.mockImplementation(
+        async (fn: (tx: unknown) => Promise<void>) => {
+          const tx = {
+            user: { findUnique: vi.fn().mockResolvedValue(null) },
+            article: { updateMany: vi.fn() },
+          };
+          return fn(tx);
+        },
+      );
 
-      await expect(service.remove('missing')).rejects.toBeInstanceOf(NotFoundError);
+      await expect(service.remove('missing')).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
     });
   });
 });

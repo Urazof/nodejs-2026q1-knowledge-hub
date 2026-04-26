@@ -35,7 +35,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return;
     }
 
-    const err = exception instanceof Error ? exception : new Error(String(exception));
+    const err =
+      exception instanceof Error ? exception : new Error(String(exception));
     this.logger.error(`Unhandled exception: ${err.message}`, err.stack);
     response.status(500).json({
       statusCode: 500,

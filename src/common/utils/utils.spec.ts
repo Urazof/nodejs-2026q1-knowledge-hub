@@ -50,7 +50,9 @@ describe('sortItems', () => {
   });
 
   it('puts null values last', () => {
-    const withNulls = [{ v: null }, { v: 1 }, { v: 2 }] as Array<{ v: number | null }>;
+    const withNulls = [{ v: null }, { v: 1 }, { v: 2 }] as Array<{
+      v: number | null;
+    }>;
     const result = sortItems(withNulls, 'v', 'asc', ['v']);
     expect(result[result.length - 1].v).toBeNull();
   });
