@@ -19,6 +19,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import {
+  CurrentUser,
+  JwtUser,
+} from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { Article } from '../common/models/article.model';
 import { PaginatedResponse } from '../common/models/paginated-response.model';
 import { ArticleFilterQueryDto } from './dto/article-filter-query.dto';
@@ -53,6 +58,7 @@ export class ArticleController {
   }
 
   @Post()
+  @Roles('editor', 'admin')
   @ApiOperation({ summary: 'Create article.' })
   @ApiCreatedResponse({ description: 'Article created.' })
   @ApiBadRequestResponse({ description: 'Invalid body.' })
@@ -61,18 +67,21 @@ export class ArticleController {
   }
 
   @Put(':id')
+  @Roles('editor', 'admin')
   @ApiOperation({ summary: 'Update article.' })
   @ApiOkResponse({ description: 'Article updated.' })
   @ApiBadRequestResponse({ description: 'Invalid UUID or body.' })
   @ApiNotFoundResponse({ description: 'Article not found.' })
   update(
+    @CurrentUser() currentUser: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: UpdateArticleDto,
   ): Promise<Article> {
-    return this.articleService.update(id, body);
+    return this.articleService.update(id, body, currentUser);
   }
 
   @Delete(':id')
+  @Roles('admin')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete article.' })
   @ApiNoContentResponse({ description: 'Article deleted.' })

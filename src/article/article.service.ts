@@ -1,9 +1,11 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ArticleStatus as PrismaArticleStatus, Prisma } from '@prisma/client';
+import { JwtUser } from '../auth/decorators/current-user.decorator';
 import { ArticleStatus } from '../common/enums/article-status.enum';
 import { Article } from '../common/models/article.model';
 import { PaginatedResponse } from '../common/models/paginated-response.model';
@@ -101,8 +103,19 @@ export class ArticleService {
     return this.mapPrismaArticle(article);
   }
 
-  async update(id: string, payload: UpdateArticleDto): Promise<Article> {
-    await this.findOneOrThrow(id);
+  async update(
+    id: string,
+    payload: UpdateArticleDto,
+    currentUser?: JwtUser,
+  ): Promise<Article> {
+    const existing = await this.findOneOrThrow(id);
+
+    if (
+      currentUser?.role === 'editor' &&
+      existing.authorId !== currentUser.userId
+    ) {
+      throw new ForbiddenException('You can only update your own articles');
+    }
 
     if (payload.authorId !== undefined || payload.categoryId !== undefined) {
       await this.validateRelations(payload.authorId, payload.categoryId);

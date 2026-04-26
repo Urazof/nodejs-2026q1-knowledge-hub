@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { Prisma, UserRole as PrismaUserRole } from '@prisma/client';
 import { UserRole } from '../common/enums/user-role.enum';
 import { ListQueryDto } from '../common/dto/list-query.dto';
@@ -49,11 +50,14 @@ export class UserService {
 
   async create(payload: CreateUserDto): Promise<PublicUser> {
     const role = payload.role ?? UserRole.VIEWER;
+    const saltRounds = Number(process.env.CRYPT_SALT) || 10;
+    const hashedPassword = await bcrypt.hash(payload.password, saltRounds);
+
     const user = this.mapPrismaUser(
       await this.prisma.user.create({
         data: {
           login: payload.login,
-          password: payload.password,
+          password: hashedPassword,
           role: this.toPrismaUserRole(role),
         },
       }),
@@ -68,14 +72,22 @@ export class UserService {
   ): Promise<PublicUser> {
     const user = await this.findOneOrThrow(id);
 
-    if (user.password !== payload.oldPassword) {
+    const passwordMatch = await bcrypt.compare(
+      payload.oldPassword,
+      user.password,
+    );
+
+    if (!passwordMatch) {
       throw new ForbiddenException('oldPassword is wrong');
     }
+
+    const saltRounds = Number(process.env.CRYPT_SALT) || 10;
+    const hashedNew = await bcrypt.hash(payload.newPassword, saltRounds);
 
     const updated = this.mapPrismaUser(
       await this.prisma.user.update({
         where: { id },
-        data: { password: payload.newPassword },
+        data: { password: hashedNew },
       }),
     );
 

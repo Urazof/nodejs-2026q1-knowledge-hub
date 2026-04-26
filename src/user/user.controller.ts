@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -20,6 +21,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import {
+  CurrentUser,
+  JwtUser,
+} from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { PublicUser } from '../common/models/user.model';
 import { ListQueryDto } from '../common/dto/list-query.dto';
 import { PaginatedResponse } from '../common/models/paginated-response.model';
@@ -53,6 +59,7 @@ export class UserController {
   }
 
   @Post()
+  @Roles('admin')
   @ApiOperation({ summary: 'Create user.' })
   @ApiCreatedResponse({ description: 'User created.' })
   @ApiBadRequestResponse({ description: 'Invalid body.' })
@@ -64,16 +71,23 @@ export class UserController {
   @ApiOperation({ summary: 'Update user password.' })
   @ApiOkResponse({ description: 'Password updated.' })
   @ApiBadRequestResponse({ description: 'Invalid UUID or body.' })
-  @ApiForbiddenResponse({ description: 'Wrong oldPassword.' })
+  @ApiForbiddenResponse({
+    description: 'Wrong oldPassword or insufficient permissions.',
+  })
   @ApiNotFoundResponse({ description: 'User not found.' })
   updatePassword(
+    @CurrentUser() currentUser: JwtUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: UpdatePasswordDto,
   ): Promise<PublicUser> {
+    if (currentUser.role !== 'admin' && currentUser.userId !== id) {
+      throw new ForbiddenException('Access denied');
+    }
     return this.userService.updatePassword(id, body);
   }
 
   @Delete(':id')
+  @Roles('admin')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete user.' })
   @ApiNoContentResponse({ description: 'User deleted.' })
