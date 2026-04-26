@@ -22,8 +22,8 @@ export default defineConfig({
         'src/common/logger/**', // wraps ConsoleLogger + fs I/O — tested via integration
       ],
       thresholds: {
-        lines: 75,
-        branches: 65,
+        lines: 90,
+        branches: 85,
       },
       reporter: ['text', 'lcov'],
     },

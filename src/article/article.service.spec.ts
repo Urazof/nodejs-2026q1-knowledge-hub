@@ -86,6 +86,30 @@ describe('ArticleService', () => {
       expect(result.status).toBe(ArticleStatus.DRAFT);
     });
 
+    it('creates article with PUBLISHED status', async () => {
+      prisma.article.create.mockResolvedValue(
+        makeDbArticle({ status: PrismaArticleStatus.PUBLISHED }),
+      );
+      const result = await service.create({
+        title: 'T',
+        content: 'C',
+        status: ArticleStatus.PUBLISHED,
+      });
+      expect(result.status).toBe(ArticleStatus.PUBLISHED);
+    });
+
+    it('creates article with ARCHIVED status', async () => {
+      prisma.article.create.mockResolvedValue(
+        makeDbArticle({ status: PrismaArticleStatus.ARCHIVED }),
+      );
+      const result = await service.create({
+        title: 'T',
+        content: 'C',
+        status: ArticleStatus.ARCHIVED,
+      });
+      expect(result.status).toBe(ArticleStatus.ARCHIVED);
+    });
+
     it('throws UnprocessableEntityException when authorId does not exist', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       await expect(

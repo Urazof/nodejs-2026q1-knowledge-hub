@@ -49,6 +49,22 @@ describe('UserService', () => {
       const arr = result as Array<{ password?: string }>;
       expect(arr[0]).not.toHaveProperty('password');
     });
+
+    it('maps admin role correctly', async () => {
+      prisma.user.findMany.mockResolvedValue([
+        makeUser({ role: PrismaUserRole.ADMIN }),
+      ]);
+      const result = (await service.findAllPublic()) as Array<{ role: string }>;
+      expect(result[0].role).toBe('admin');
+    });
+
+    it('maps editor role correctly', async () => {
+      prisma.user.findMany.mockResolvedValue([
+        makeUser({ role: PrismaUserRole.EDITOR }),
+      ]);
+      const result = (await service.findAllPublic()) as Array<{ role: string }>;
+      expect(result[0].role).toBe('editor');
+    });
   });
 
   describe('findOnePublic', () => {
@@ -68,6 +84,30 @@ describe('UserService', () => {
   });
 
   describe('create', () => {
+    it('creates admin user with correct role', async () => {
+      prisma.user.create.mockResolvedValue(
+        makeUser({ role: PrismaUserRole.ADMIN }),
+      );
+      const result = await service.create({
+        login: 'admin',
+        password: 'pass',
+        role: 'admin' as never,
+      });
+      expect(result.role).toBe('admin');
+    });
+
+    it('creates editor user with correct role', async () => {
+      prisma.user.create.mockResolvedValue(
+        makeUser({ role: PrismaUserRole.EDITOR }),
+      );
+      const result = await service.create({
+        login: 'ed',
+        password: 'pass',
+        role: 'editor' as never,
+      });
+      expect(result.role).toBe('editor');
+    });
+
     it('hashes password and returns PublicUser', async () => {
       const dbUser = makeUser({ role: PrismaUserRole.VIEWER });
       prisma.user.create.mockResolvedValue(dbUser);
