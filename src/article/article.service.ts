@@ -1,9 +1,9 @@
 import {
   ForbiddenException,
   Injectable,
-  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { NotFoundError } from '../common/errors';
 import { ArticleStatus as PrismaArticleStatus, Prisma } from '@prisma/client';
 import { JwtUser } from '../auth/decorators/current-user.decorator';
 import { ArticleStatus } from '../common/enums/article-status.enum';
@@ -173,7 +173,7 @@ export class ArticleService {
     });
 
     if (!article) {
-      throw new NotFoundException('Article not found');
+      throw new NotFoundError('Article not found');
     }
 
     return this.mapPrismaArticle(article);

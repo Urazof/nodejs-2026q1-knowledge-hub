@@ -1,8 +1,5 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { NotFoundError } from '../common/errors';
 import * as bcrypt from 'bcrypt';
 import { Prisma, UserRole as PrismaUserRole } from '@prisma/client';
 import { UserRole } from '../common/enums/user-role.enum';
@@ -99,7 +96,7 @@ export class UserService {
       const user = await tx.user.findUnique({ where: { id } });
 
       if (!user) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundError('User not found');
       }
 
       // Explicitly nullify authorId on articles before deleting the user.
@@ -119,7 +116,7 @@ export class UserService {
     const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundError('User not found');
     }
 
     return this.mapPrismaUser(user);
