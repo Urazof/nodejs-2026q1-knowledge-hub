@@ -79,7 +79,7 @@ AI_CACHE_TTL_SEC=300
 |---|---|---|---|
 | `GEMINI_API_KEY` | **yes** | — | API key from Google AI Studio |
 | `GEMINI_API_BASE_URL` | no | `https://generativelanguage.googleapis.com` | Base URL for Gemini REST API |
-| `GEMINI_MODEL` | no | `gemini-2.0-flash` | Model name |
+| `GEMINI_MODEL` | no | `gemini-2.5-flash` | Model name |
 | `AI_RATE_LIMIT_RPM` | no | `20` | Max AI requests per minute per IP |
 | `AI_CACHE_TTL_SEC` | no | `300` | Cache TTL for summarize/translate responses |
 

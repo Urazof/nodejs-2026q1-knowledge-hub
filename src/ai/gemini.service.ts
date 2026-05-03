@@ -43,7 +43,7 @@ export class GeminiService {
     this.baseUrl =
       process.env.GEMINI_API_BASE_URL ??
       'https://generativelanguage.googleapis.com';
-    this.model = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
+    this.model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
   }
 
   async generateContent(prompt: string): Promise<GeminiResult> {
