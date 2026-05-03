@@ -59,8 +59,9 @@ This API includes AI-powered endpoints for articles powered by [Google Gemini](h
 3. Click **Create API key** → **Create API key in new project**.
 4. Copy the generated key (starts with `AI...`).
 
-> Free tier limits (as of 2025): 15 RPM, 1 500 000 TPM, 1 500 RPD for `gemini-2.0-flash`.  
-> Regional availability: may be unavailable in some EU/Asian regions — use a VPN or a project in `us-central1` if you get 403.
+> Free tier limits (as of 2025): 10 RPM, 1 000 000 TPM, 500 RPD for `gemini-2.5-flash`.  
+> **Note:** `gemini-2.0-flash` free tier quota may be set to `0` in some regions/projects even with a valid key — use `gemini-2.5-flash` instead.  
+> Regional availability: if you get persistent 429 errors, enable the **Generative Language API** in [Google Cloud Console](https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com).
 
 ### Step 2 — Configure environment
 
@@ -69,7 +70,7 @@ Open `.env` and set the Gemini variables:
 ```dotenv
 GEMINI_API_KEY=AIzaSy...your-key-here...
 GEMINI_API_BASE_URL=https://generativelanguage.googleapis.com
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
 AI_RATE_LIMIT_RPM=20
 AI_CACHE_TTL_SEC=300
 ```
@@ -138,7 +139,7 @@ curl http://localhost:4000/ai/usage \
 
 ### Known limitations
 
-- **Free-tier quota:** `gemini-2.0-flash` allows 15 RPM / 1 500 RPD on the free plan. The service applies its own `AI_RATE_LIMIT_RPM` guard, but the underlying Gemini quota may still be hit under load — the service retries up to 3 times with exponential backoff before returning `503`.
+- **Free-tier quota:** `gemini-2.5-flash` allows 15 RPM / 1 500 RPD on the free plan. The service applies its own `AI_RATE_LIMIT_RPM` guard, but the underlying Gemini quota may still be hit under load — the service retries up to 3 times with exponential backoff before returning `503`.
 - **Latency:** Cold responses from Gemini typically take 2–8 seconds. Cached responses (summarize / translate) are served instantly.
 - **Regional availability:** Gemini API may be blocked in some countries. If you receive `403` from the Gemini endpoint, check that your Google Cloud project is in an [approved region](https://ai.google.dev/gemini-api/docs/available-regions).
 - **JSON output:** The analyze and translate endpoints ask Gemini to return JSON. Occasionally the model wraps the output in markdown fences; the service strips them automatically. If the JSON is still unparseable, the raw text is used as a safe fallback.
