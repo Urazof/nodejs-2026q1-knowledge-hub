@@ -52,7 +52,7 @@ export class GeminiService implements OnModuleInit {
       'https://generativelanguage.googleapis.com';
     this.model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
     this.embeddingModel =
-      process.env.GEMINI_EMBEDDING_MODEL ?? 'text-embedding-004';
+      process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001';
   }
 
   onModuleInit(): void {

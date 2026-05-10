@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { QdrantClient } from '@qdrant/js-client-rest';
 
-/** Dimension of Gemini text-embedding-004 vectors */
+/** Dimension of Gemini embedding vectors (gemini-embedding-001 with outputDimensionality=768) */
 const VECTOR_SIZE = 768;
 
 /** Minimum cosine similarity to include in results */
