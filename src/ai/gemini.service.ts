@@ -11,6 +11,11 @@ export interface GeminiResult {
   outputTokens?: number;
 }
 
+interface GeminiEmbedResponse {
+  embedding?: { values?: number[] };
+  error?: { code?: number; message?: string };
+}
+
 interface GeminiApiResponse {
   candidates?: Array<{
     content?: {
@@ -37,6 +42,7 @@ export class GeminiService {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly model: string;
+  private readonly embeddingModel: string;
 
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY ?? '';
@@ -44,10 +50,58 @@ export class GeminiService {
       process.env.GEMINI_API_BASE_URL ??
       'https://generativelanguage.googleapis.com';
     this.model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+    this.embeddingModel =
+      process.env.GEMINI_EMBEDDING_MODEL ?? 'text-embedding-004';
   }
 
   async generateContent(prompt: string): Promise<GeminiResult> {
     return this.fetchWithRetry(prompt, 0);
+  }
+
+  async embedContent(text: string): Promise<number[]> {
+    const model = this.embeddingModel;
+    const url = `${this.baseUrl}/v1beta/models/${model}:embedContent?key=${this.apiKey}`;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: `models/${model}`,
+          content: { parts: [{ text }] },
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      const message =
+        err instanceof Error && err.name === 'AbortError'
+          ? 'Gemini embedding request timed out'
+          : 'Gemini embedding API is unavailable';
+      this.logger.error(message);
+      throw new ServiceUnavailableException(message);
+    }
+    clearTimeout(timer);
+
+    const body = (await response.json()) as GeminiEmbedResponse;
+
+    if (!response.ok) {
+      this.logger.error(
+        `Gemini embed error: HTTP ${response.status} — ${body.error?.message ?? 'unknown'}`,
+      );
+      throw new ServiceUnavailableException('Gemini embedding service error');
+    }
+
+    const values = body.embedding?.values;
+    if (!values?.length) {
+      throw new ServiceUnavailableException('Gemini returned empty embedding');
+    }
+
+    return values;
   }
 
   private async fetchWithRetry(

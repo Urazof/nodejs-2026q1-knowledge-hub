@@ -17,5 +17,6 @@ import { AiRateLimitGuard } from './guards/ai-rate-limit.guard';
     AiSessionService,
     AiRateLimitGuard,
   ],
+  exports: [GeminiService],
 })
 export class AiModule {}
