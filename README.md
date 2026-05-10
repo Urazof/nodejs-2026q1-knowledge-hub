@@ -151,7 +151,7 @@ curl http://localhost:4000/ai/usage \
 
 The RAG layer lets you **index Knowledge Hub articles into a vector database** and then query them with natural-language questions answered by Gemini — grounded in actual article content.
 
-Architecture: Qdrant (external vector DB) + Gemini embeddings (`text-embedding-004`) + Gemini generation (`gemini-2.5-flash`).
+Architecture: Qdrant (external vector DB) + Gemini embeddings (`gemini-embedding-001`) + Gemini generation (`gemini-2.5-flash`).
 
 ### Step 1 — Gemini API key
 
@@ -163,7 +163,7 @@ Open `.env` and verify the RAG variables (all have sensible defaults):
 
 ```dotenv
 # Gemini embeddings model
-GEMINI_EMBEDDING_MODEL=text-embedding-004
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 
 # Qdrant URL — use http://vectordb:6333 when running in Docker Compose
 RAG_VECTOR_DB_URL=http://vectordb:6333
@@ -301,7 +301,7 @@ All RAG endpoints are also available in Swagger UI at `http://localhost:4000/doc
 
 ### RAG Known Limitations
 
-- **Embedding rate limit:** `text-embedding-004` on the free tier is rate-limited. Indexing many articles in sequence may trigger `503` (retried automatically). If indexing fails, wait 60 seconds and re-run — incremental mode will skip already-indexed articles.
+- **Embedding rate limit:** `gemini-embedding-001` on the free tier is rate-limited. Indexing many articles in sequence may trigger `503` (retried automatically). If indexing fails, wait 60 seconds and re-run — incremental mode will skip already-indexed articles.
 - **Index is not persistent across Qdrant restarts without a volume:** The Docker Compose setup uses a named volume (`qdrant_data`) so data survives container restarts. If you delete the volume (`docker compose down -v`), re-run `POST /ai/rag/index`.
 - **Conversation memory is in-memory:** `conversationId` history is lost on app restart. Start a new conversation after restarting the server.
 - **Retrieval quality depends on index freshness:** After editing an article, call `POST /ai/rag/index` (or `POST /ai/rag/index` with `articleIds`) to update its vectors. Stale vectors return outdated content.
