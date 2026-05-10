@@ -5,6 +5,7 @@ import { RagController } from './rag.controller';
 import { RagChunkService } from './services/rag-chunk.service';
 import { RagEmbeddingService } from './services/rag-embedding.service';
 import { RagIndexService } from './services/rag-index.service';
+import { RagSearchService } from './services/rag-search.service';
 import { RagVectorService } from './services/rag-vector.service';
 
 @Module({
@@ -15,6 +16,7 @@ import { RagVectorService } from './services/rag-vector.service';
     RagEmbeddingService,
     RagChunkService,
     RagIndexService,
+    RagSearchService,
   ],
   exports: [RagVectorService, RagEmbeddingService, RagChunkService],
 })
