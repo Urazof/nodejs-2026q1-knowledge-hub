@@ -147,6 +147,169 @@ curl http://localhost:4000/ai/usage \
 
 ---
 
+## RAG Features (Retrieval-Augmented Generation)
+
+The RAG layer lets you **index Knowledge Hub articles into a vector database** and then query them with natural-language questions answered by Gemini — grounded in actual article content.
+
+Architecture: Qdrant (external vector DB) + Gemini embeddings (`text-embedding-004`) + Gemini generation (`gemini-2.5-flash`).
+
+### Step 1 — Gemini API key
+
+Follow **Step 1** from the [AI Features](#ai-features-google-gemini-api) section above. The same key is used for both generation and embeddings. Make sure `GEMINI_API_KEY` is set in your `.env`.
+
+### Step 2 — Configure RAG environment
+
+Open `.env` and verify the RAG variables (all have sensible defaults):
+
+```dotenv
+# Gemini embeddings model
+GEMINI_EMBEDDING_MODEL=text-embedding-004
+
+# Qdrant URL — use http://vectordb:6333 when running in Docker Compose
+RAG_VECTOR_DB_URL=http://vectordb:6333
+
+# Collection name inside Qdrant
+RAG_VECTOR_COLLECTION=knowledge_hub_articles
+
+# Host port for Qdrant (change if 6333 is taken on your machine)
+QDRANT_EXTERNAL_PORT=6333
+
+# Chunk size and overlap (characters)
+RAG_CHUNK_SIZE=800
+RAG_CHUNK_OVERLAP=200
+
+# Max messages stored per conversation (0 = unlimited)
+RAG_CONVERSATION_MAX_MESSAGES=20
+```
+
+> If you run the app locally (not in Docker), set `RAG_VECTOR_DB_URL=http://localhost:6333`.
+
+### Step 3 — Start the vector database
+
+Qdrant runs as a separate Docker service. Start it alongside the app:
+
+```bash
+docker compose up -d
+```
+
+Verify Qdrant is healthy:
+
+```bash
+curl http://localhost:6333/healthz
+# Expected: {"title":"qdrant - healthy"}
+```
+
+Or check with Docker:
+
+```bash
+docker compose ps
+# vectordb should show: healthy
+```
+
+### Step 4 — Build the vector index
+
+Once the app and Qdrant are running, trigger indexing. This chunks all published articles, embeds each chunk via Gemini, and stores vectors in Qdrant.
+
+```bash
+# Index all published articles
+curl -X POST http://localhost:4000/ai/rag/index \
+  -H "Authorization: Bearer {accessToken}" \
+  -H "Content-Type: application/json" \
+  -d '{"onlyPublished": true}'
+```
+
+Expected response:
+```json
+{
+  "indexedArticles": 5,
+  "skippedArticles": 0,
+  "indexedChunks": 23,
+  "vectorCollection": "knowledge_hub_articles"
+}
+```
+
+**Incremental re-index:** Run the same command again after updating articles. Unchanged articles are skipped automatically (`skippedArticles > 0`). Only modified articles are re-embedded.
+
+**Index specific articles:**
+```bash
+curl -X POST http://localhost:4000/ai/rag/index \
+  -H "Authorization: Bearer {accessToken}" \
+  -H "Content-Type: application/json" \
+  -d '{"articleIds": ["uuid-1", "uuid-2"]}'
+```
+
+**Remove an article from the index:**
+```bash
+curl -X DELETE http://localhost:4000/ai/rag/index/articles/{articleId} \
+  -H "Authorization: Bearer {accessToken}"
+# 204 No Content on success, 404 if article was not indexed
+```
+
+### Step 5 — Use RAG endpoints
+
+**Semantic search** — find relevant chunks across all indexed articles:
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/search \
+  -H "Authorization: Bearer {accessToken}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "how to handle errors in NestJS", "limit": 5}'
+```
+
+Search with metadata filters:
+```bash
+curl -X POST http://localhost:4000/ai/rag/search \
+  -H "Authorization: Bearer {accessToken}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "authentication best practices",
+    "limit": 3,
+    "articleStatus": "PUBLISHED",
+    "tags": ["security", "jwt"]
+  }'
+```
+
+**RAG Chat** — ask a question, get an answer grounded in article content:
+
+```bash
+# First question — no conversationId needed
+curl -X POST http://localhost:4000/ai/rag/chat \
+  -H "Authorization: Bearer {accessToken}" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What articles do you have about NestJS?"}'
+```
+
+Response includes a `conversationId` — pass it back to continue the conversation:
+```bash
+# Follow-up question — uses conversation history
+curl -X POST http://localhost:4000/ai/rag/chat \
+  -H "Authorization: Bearer {accessToken}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Which of those articles covers dependency injection?",
+    "conversationId": "{conversationId from previous response}"
+  }'
+```
+
+**Retrieve conversation history:**
+```bash
+curl http://localhost:4000/ai/rag/chat/{conversationId}/history \
+  -H "Authorization: Bearer {accessToken}"
+```
+
+All RAG endpoints are also available in Swagger UI at `http://localhost:4000/doc` under the **rag** tag.
+
+### RAG Known Limitations
+
+- **Embedding rate limit:** `text-embedding-004` on the free tier is rate-limited. Indexing many articles in sequence may trigger `503` (retried automatically). If indexing fails, wait 60 seconds and re-run — incremental mode will skip already-indexed articles.
+- **Index is not persistent across Qdrant restarts without a volume:** The Docker Compose setup uses a named volume (`qdrant_data`) so data survives container restarts. If you delete the volume (`docker compose down -v`), re-run `POST /ai/rag/index`.
+- **Conversation memory is in-memory:** `conversationId` history is lost on app restart. Start a new conversation after restarting the server.
+- **Retrieval quality depends on index freshness:** After editing an article, call `POST /ai/rag/index` (or `POST /ai/rag/index` with `articleIds`) to update its vectors. Stale vectors return outdated content.
+- **Free-tier latency:** First requests to Gemini after a period of inactivity may take 5–15 seconds. Subsequent requests are faster.
+- **Search returns empty if index is empty:** Run `POST /ai/rag/index` before querying. A `200` with `results: []` means no articles matched the score threshold (0.3 minimum cosine similarity).
+
+---
+
 ## Docker (Foundation for Prisma/PostgreSQL)
 
 This repository includes Docker runtime infrastructure for the current in-memory API and for the upcoming Prisma migration step.
