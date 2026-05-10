@@ -83,6 +83,7 @@ export class GeminiService implements OnModuleInit {
         body: JSON.stringify({
           model: `models/${model}`,
           content: { parts: [{ text }] },
+          outputDimensionality: 768,
         }),
         signal: controller.signal,
       });
