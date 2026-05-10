@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AiModule } from './ai/ai.module';
 import { ArticleModule } from './article/article.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -21,6 +22,7 @@ import { UserModule } from './user/user.module';
     ArticleModule,
     CategoryModule,
     CommentModule,
+    AiModule,
   ],
   providers: [
     {
