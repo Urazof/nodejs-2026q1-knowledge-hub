@@ -155,6 +155,28 @@ export class ArticleService {
     return this.mapPrismaArticle(article);
   }
 
+  async findForRagIndexing(
+    onlyPublished: boolean,
+    articleIds?: string[],
+  ): Promise<Article[]> {
+    const where: Prisma.ArticleWhereInput = {};
+
+    if (onlyPublished) {
+      where.status = PrismaArticleStatus.PUBLISHED;
+    }
+
+    if (articleIds?.length) {
+      where.id = { in: articleIds };
+    }
+
+    const articles = await this.prisma.article.findMany({
+      where,
+      include: { tags: { select: { name: true } } },
+    });
+
+    return articles.map((a) => this.mapPrismaArticle(a));
+  }
+
   async remove(id: string): Promise<void> {
     await this.findOneOrThrow(id);
     await this.prisma.article.delete({ where: { id } });
