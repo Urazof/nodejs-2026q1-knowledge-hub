@@ -7,8 +7,8 @@ import {
   RagChatResponseDto,
   RagChatSourceDto,
 } from '../dto/rag-chat-response.dto';
-import { RagEmbeddingService } from './rag-embedding.service';
-import { RagSearchResult, RagVectorService } from './rag-vector.service';
+import { RagSearchResult } from './rag-vector.service';
+import { RagSearchService } from './rag-search.service';
 
 interface ConversationMessage {
   role: 'user' | 'assistant';
@@ -29,8 +29,7 @@ export class RagChatService {
   private readonly maxMessages: number;
 
   constructor(
-    private readonly embeddingService: RagEmbeddingService,
-    private readonly vectorService: RagVectorService,
+    private readonly searchService: RagSearchService,
     private readonly gemini: GeminiService,
   ) {
     this.maxMessages = parseInt(
@@ -47,26 +46,23 @@ export class RagChatService {
       `Chat [${conversationId}] question="${dto.question}" history=${history.length}`,
     );
 
-    // 1. Embed question → vector
-    const queryVector = await this.embeddingService.embed(dto.question);
-
-    // 2. Retrieve top-N relevant chunks from Qdrant
-    const chunks = await this.vectorService.searchPoints(
-      queryVector,
+    // 1. Embed + hybrid-retrieve top-N chunks (semantic + lexical re-rank)
+    const chunks = await this.searchService.retrieveChunks(
+      dto.question,
       CHAT_RETRIEVE_LIMIT,
     );
 
-    // 3. Build prompt: system instructions + history + context + question
+    // 2. Build prompt: system instructions + history + context + question
     const prompt = this.buildPrompt(dto.question, chunks, history);
 
-    // 4. Generate answer via Gemini
+    // 3. Generate answer via Gemini
     const result = await this.gemini.generateContent(prompt);
 
-    // 5. Persist exchange in memory (user first, then assistant)
+    // 4. Persist exchange in memory (user first, then assistant)
     this.addMessage(conversationId, 'user', dto.question);
     this.addMessage(conversationId, 'assistant', result.text);
 
-    // 6. Build source attribution from the chunks passed to generation
+    // 5. Build source attribution from the chunks passed to generation
     const sources: RagChatSourceDto[] = chunks.map((r) => ({
       articleId: r.payload.articleId,
       articleTitle: r.payload.articleTitle,

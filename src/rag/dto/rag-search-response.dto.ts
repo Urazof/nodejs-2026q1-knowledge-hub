@@ -11,9 +11,15 @@ export class RagSearchResultItemDto {
   chunk: string;
 
   @ApiProperty({
-    description: 'Cosine similarity score [0..1], higher = more relevant',
+    description: 'Semantic cosine similarity score from Qdrant [0..1]',
   })
   similarity: number;
+
+  @ApiProperty({
+    description:
+      'Hybrid re-rank score: 0.7 × semantic + 0.3 × lexical [0..1], higher = more relevant',
+  })
+  hybridScore: number;
 }
 
 export class RagSearchResponseDto {

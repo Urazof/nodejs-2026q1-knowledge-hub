@@ -34,8 +34,19 @@ export class RagIndexService {
     );
 
     let totalChunks = 0;
+    let skippedArticles = 0;
 
     for (const article of articles) {
+      // Incremental indexing: skip articles whose content hasn't changed
+      const existingTs = await this.vectorService.getArticleTimestamp(
+        article.id,
+      );
+      if (existingTs !== null && existingTs === article.updatedAt) {
+        this.logger.debug(`Skipping "${article.title}" — already up to date`);
+        skippedArticles++;
+        continue;
+      }
+
       // Delete existing vectors before upsert — prevents stale chunks
       await this.vectorService.deleteByArticleId(article.id);
 
@@ -67,12 +78,14 @@ export class RagIndexService {
       this.logger.debug(`Indexed "${article.title}": ${chunks.length} chunks`);
     }
 
+    const indexedArticles = articles.length - skippedArticles;
     this.logger.log(
-      `Index complete: ${articles.length} articles, ${totalChunks} chunks`,
+      `Index complete: ${indexedArticles} indexed, ${skippedArticles} skipped, ${totalChunks} chunks`,
     );
 
     return {
-      indexedArticles: articles.length,
+      indexedArticles,
+      skippedArticles,
       indexedChunks: totalChunks,
       vectorCollection: this.vectorService.collection,
     };
