@@ -1,4 +1,5 @@
 import {
+  HttpException,
   Injectable,
   Logger,
   OnModuleInit,
@@ -178,6 +179,9 @@ export class RagVectorService implements OnModuleInit {
     try {
       return await fn();
     } catch (error) {
+      // Pass HTTP exceptions through unchanged — they carry intentional status codes
+      if (error instanceof HttpException) throw error;
+
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Qdrant ${operation} failed: ${msg}`);
       throw new ServiceUnavailableException(

@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
 
@@ -37,7 +38,7 @@ const GEMINI_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 
 @Injectable()
-export class GeminiService {
+export class GeminiService implements OnModuleInit {
   private readonly logger = new Logger(GeminiService.name);
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -54,6 +55,14 @@ export class GeminiService {
       process.env.GEMINI_EMBEDDING_MODEL ?? 'text-embedding-004';
   }
 
+  onModuleInit(): void {
+    if (!this.apiKey) {
+      this.logger.warn(
+        'GEMINI_API_KEY is not set — all Gemini API calls will fail with 503',
+      );
+    }
+  }
+
   async generateContent(prompt: string): Promise<GeminiResult> {
     return this.fetchWithRetry(prompt, 0);
   }
@@ -61,6 +70,7 @@ export class GeminiService {
   async embedContent(text: string): Promise<number[]> {
     const model = this.embeddingModel;
     const url = `${this.baseUrl}/v1beta/models/${model}:embedContent?key=${this.apiKey}`;
+    this.logger.debug(`Embed request → ${this.sanitizeUrl(url)}`);
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
@@ -201,6 +211,11 @@ export class GeminiService {
       );
     }
     return false;
+  }
+
+  /** Redacts API key from URL before any logging — defence-in-depth */
+  private sanitizeUrl(url: string): string {
+    return url.replace(/([?&]key=)[^&]+/, '$1[REDACTED]');
   }
 
   private sleep(ms: number): Promise<void> {
