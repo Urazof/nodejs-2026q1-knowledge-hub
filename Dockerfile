@@ -2,7 +2,7 @@ FROM node:24 AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install
 
 # Copy Prisma schema first — needed for `prisma generate`
 COPY prisma ./prisma
@@ -18,7 +18,8 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 # prisma is now in dependencies, so it's installed here
-RUN npm ci --omit=dev
+# npm install instead of npm ci: lockfile may lack platform-specific optional deps on Windows hosts
+RUN npm install --omit=dev
 
 # Copy generated Prisma client engine from build stage
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
@@ -29,6 +30,8 @@ COPY prisma ./prisma
 COPY --from=build /app/dist ./dist
 
 COPY start.sh ./start.sh
+
+RUN mkdir -p /app/logs && chown -R node:node /app/logs
 
 EXPOSE 4000
 USER node

@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
 
@@ -9,6 +10,11 @@ export interface GeminiResult {
   text: string;
   promptTokens?: number;
   outputTokens?: number;
+}
+
+interface GeminiEmbedResponse {
+  embedding?: { values?: number[] };
+  error?: { code?: number; message?: string };
 }
 
 interface GeminiApiResponse {
@@ -32,11 +38,12 @@ const GEMINI_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 
 @Injectable()
-export class GeminiService {
+export class GeminiService implements OnModuleInit {
   private readonly logger = new Logger(GeminiService.name);
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly model: string;
+  private readonly embeddingModel: string;
 
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY ?? '';
@@ -44,10 +51,68 @@ export class GeminiService {
       process.env.GEMINI_API_BASE_URL ??
       'https://generativelanguage.googleapis.com';
     this.model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+    this.embeddingModel =
+      process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001';
+  }
+
+  onModuleInit(): void {
+    if (!this.apiKey) {
+      this.logger.warn(
+        'GEMINI_API_KEY is not set — all Gemini API calls will fail with 503',
+      );
+    }
   }
 
   async generateContent(prompt: string): Promise<GeminiResult> {
     return this.fetchWithRetry(prompt, 0);
+  }
+
+  async embedContent(text: string): Promise<number[]> {
+    const model = this.embeddingModel;
+    const url = `${this.baseUrl}/v1beta/models/${model}:embedContent?key=${this.apiKey}`;
+    this.logger.debug(`Embed request → ${this.sanitizeUrl(url)}`);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: `models/${model}`,
+          content: { parts: [{ text }] },
+          outputDimensionality: 768,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      const message =
+        err instanceof Error && err.name === 'AbortError'
+          ? 'Gemini embedding request timed out'
+          : 'Gemini embedding API is unavailable';
+      this.logger.error(message);
+      throw new ServiceUnavailableException(message);
+    }
+    clearTimeout(timer);
+
+    const body = (await response.json()) as GeminiEmbedResponse;
+
+    if (!response.ok) {
+      this.logger.error(
+        `Gemini embed error: HTTP ${response.status} — ${body.error?.message ?? 'unknown'}`,
+      );
+      throw new ServiceUnavailableException('Gemini embedding service error');
+    }
+
+    const values = body.embedding?.values;
+    if (!values?.length) {
+      throw new ServiceUnavailableException('Gemini returned empty embedding');
+    }
+
+    return values;
   }
 
   private async fetchWithRetry(
@@ -147,6 +212,11 @@ export class GeminiService {
       );
     }
     return false;
+  }
+
+  /** Redacts API key from URL before any logging — defence-in-depth */
+  private sanitizeUrl(url: string): string {
+    return url.replace(/([?&]key=)[^&]+/, '$1[REDACTED]');
   }
 
   private sleep(ms: number): Promise<void> {

@@ -11,6 +11,7 @@ import { CommentModule } from './comment/comment.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { PrismaModule } from './prisma/prisma.module';
+import { RagModule } from './rag/rag.module';
 import { UserModule } from './user/user.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { UserModule } from './user/user.module';
     CategoryModule,
     CommentModule,
     AiModule,
+    RagModule,
   ],
   providers: [
     {

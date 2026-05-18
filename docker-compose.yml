@@ -19,12 +19,30 @@ services:
     networks:
       - knowledge_hub_net
 
+  vectordb:
+    image: qdrant/qdrant:latest
+    ports:
+      - "${QDRANT_EXTERNAL_PORT:-6333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - knowledge_hub_net
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
     depends_on:
       db:
+        condition: service_healthy
+      vectordb:
         condition: service_healthy
     env_file:
       - .env
@@ -67,4 +85,5 @@ networks:
 
 volumes:
   pg_data:
+  qdrant_data:
 
